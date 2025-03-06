@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestion Cantine</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f8f8f8;
+        }
+        .container {
+            width: 90%;
+            max-width: 400px;
+            background: white;
+            padding: 20px;
+            margin-top: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .btn {
+            width: 100%;
+            padding: 10px;
+            margin-top: 10px;
+            border: none;
+            background: #007BFF;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn:hover {
+            background: #0056b3;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container" id="mainPage">
+        <h2>Liste des employés</h2>
+        <label for="mealDate">Sélectionner une date :</label>
+        <input type="date" id="mealDate" value="">
+        <ul id="employeeList"></ul>
+        <button class="btn" onclick="saveMeals()">Enregistrer repas</button>
+        <button class="btn" onclick="showDebts()">Voir les dettes</button>
+        <button class="btn" onclick="showAddEmployee()">Ajouter un employé</button>
+    </div>
+    
+    <div class="container hidden" id="debtsPage">
+        <h2>Dettes</h2>
+        <ul id="debtList"></ul>
+        <button class="btn" onclick="showMainPage()">Retour</button>
+    </div>
+    
+    <div class="container hidden" id="addEmployeePage">
+        <h2>Ajouter un employé</h2>
+        <input type="text" id="employeeName" placeholder="Nom" required>
+        <input type="text" id="employeeFirstName" placeholder="Prénom" required>
+        <button class="btn" onclick="addEmployee()">Ajouter</button>
+        <button class="btn" onclick="showMainPage()">Retour</button>
+    </div>
+    
+    <script>
+        let employees = [];
+        let mealRecords = {};
+
+        function showMainPage() {
+            document.getElementById('mainPage').classList.remove('hidden');
+            document.getElementById('debtsPage').classList.add('hidden');
+            document.getElementById('addEmployeePage').classList.add('hidden');
+            displayEmployees();
+        }
+
+        function showDebts() {
+            document.getElementById('mainPage').classList.add('hidden');
+            document.getElementById('debtsPage').classList.remove('hidden');
+            displayDebts();
+        }
+
+        function showAddEmployee() {
+            document.getElementById('mainPage').classList.add('hidden');
+            document.getElementById('addEmployeePage').classList.remove('hidden');
+        }
+
+        async function addEmployee() {
+            let name = document.getElementById('employeeName').value;
+            let firstName = document.getElementById('employeeFirstName').value;
+
+            if (!name || !firstName) return;
+
+            await fetch("http://127.0.0.1:5000/employes", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ nom: name, prenom: firstName })
+            });
+
+            showMainPage();
+        }
+
+
+        async function displayEmployees() {
+            let response = await fetch("http://127.0.0.1:5000/employes");
+            let employees = await response.json();
+            
+            let list = document.getElementById('employeeList');
+            list.innerHTML = '';
+
+            let date = document.getElementById('mealDate').value;
+            
+            employees.forEach(emp => {
+                let checked = mealRecords[date]?.includes(emp.id) ? 'checked' : '';
+                list.innerHTML += `<li>
+                    <input type='checkbox' id='emp${emp.id}' ${checked}> 
+                    ${emp.prenom} ${emp.nom}
+                </li>`;
+            });
+        }
+
+
+        async function saveMeals() {
+            let date = document.getElementById('mealDate').value;
+            if (!date) {
+                alert('Veuillez sélectionner une date.');
+                return;
+            }
+
+            let response = await fetch("http://127.0.0.1:5000/employes");
+            let employees = await response.json();
+
+            let repas = [];
+            employees.forEach(emp => {
+                let checkbox = document.getElementById(`emp${emp.id}`);
+                if (checkbox.checked) {
+                    repas.push({ employe_id: emp.id, paye: 0 }); // 0 = dette
+                }
+            });
+
+            await fetch("http://127.0.0.1:5000/repas", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ date, repas })
+            });
+
+            alert("Repas enregistrés !");
+        }
+
+        async function displayDebts() {
+            let response = await fetch("http://127.0.0.1:5000/dettes");
+            let dettes = await response.json();
+            
+            let list = document.getElementById('debtList');
+            list.innerHTML = '';
+            
+            dettes.forEach(emp => {
+                list.innerHTML += `<li>${emp.prenom} ${emp.nom} - Dette: ${emp.dette}€</li>`;
+            });
+        }
+
+    </script>
+</body>
+</html>
