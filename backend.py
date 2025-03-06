@@ -47,7 +47,7 @@ init_db()
 
 def get_donnes_test_file():
     with open("donnestest.json", "r") as f:
-        return f
+        return json.load(f)
 
 @app.route('/employes', methods=['GET', 'POST'])
 def manage_employes():
@@ -68,16 +68,17 @@ def enregistrer_repas():
     conn = get_db_connection()
     cursor = conn.cursor()
     for repas in data['repas']:
-        cursor.execute("INSERT INTO paiement(montant_paiement, date_paiement) VALUES(?, ?)", (data['montant'], data['date']))
-        id_paiement = cursor.execute("SELECT LAST_INSERT_ID();").fetchone()
+        cursor.execute("INSERT INTO paiement(montant_paiement, date_paiement) VALUES(?, ?)", (repas['montant'], data['date']))
+        id_paiement = cursor.execute("SELECT LAST_INSERT_ROWID();").fetchone()[0]
+        print("test")
+        print(id_paiement)
         donnestestfile = get_donnes_test_file()
         donnestestfile["id_paiement"] = id_paiement
         with open("donnestest.json", "w") as f:
             json.dump(donnestestfile, f)
-        cursor.execute("INSERT INTO repas (employe_id, date) VALUES (?, ?)",
-                       (repas['employe_id'], data['date']))
-        if not repas['paye']:
-            cursor.execute("UPDATE employes SET dette = dette + 5 WHERE id = ?", (repas['employe_id'],))
+        cursor.execute("INSERT INTO repas (employe_id, id_paiement, date) VALUES (?, ?, ?)",
+                       (repas['employe_id'], id_paiement, data['date']))
+    cursor.close()
     conn.commit()
     return jsonify({"message": "Repas enregistrés !"})
 

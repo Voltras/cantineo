@@ -136,7 +136,7 @@
             employees.forEach(emp => {
                 let checkbox = document.getElementById(`emp${emp.id}`);
                 if (checkbox.checked) {
-                    repas.push({ employe_id: emp.id, paye: 0 }); // 0 = dette
+                    repas.push({ employe_id: emp.id, montant: 0 });
                 }
             });
 
