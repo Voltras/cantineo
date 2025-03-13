@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <title>Gestion Cantine</title>
     <style>
         body {
@@ -61,7 +62,7 @@
         <h2>Ajouter un employé</h2>
         <input type="text" id="employeeName" placeholder="Nom" required>
         <input type="text" id="employeeFirstName" placeholder="Prénom" required>
-        <button class="btn" onclick="addEmployee()">Ajouter</button>
+        <button class="btn" onclick="handleAddEmployee()">Ajouter</button>
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
     
@@ -79,7 +80,6 @@
         function showDebts() {
             document.getElementById('mainPage').classList.add('hidden');
             document.getElementById('debtsPage').classList.remove('hidden');
-            displayDebts();
         }
 
         function showAddEmployee() {
@@ -87,79 +87,90 @@
             document.getElementById('addEmployeePage').classList.remove('hidden');
         }
 
-        async function addEmployee() {
-            let name = document.getElementById('employeeName').value;
-            let firstName = document.getElementById('employeeFirstName').value;
+        let db;
+        async function initDB() {
+            const SQL = await initSqlJs({ locateFile: cantineo => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${cantineo}` })
+            db = new SQL.Database();
 
-            if (!name || !firstName) return;
+            db.run(`
+                CREATE TABLE IF NOT EXISTS employes (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    nom TEXT NOT NULL,
+                    prenom TEXT NOT NULL);
+                CREATE TABLE IF NOT EXISTS paiement  (
+                    id_paiement INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date_paiement DATE NOT NULL,
+                    montant_paiement FLOAT);
+                CREATE TABLE IF NOT EXISTS repas (
+                    id_repas INTEGER PRIMARY KEY AUTOINCREMENT,
+                    employe_id INTEGER NOT NULL,
+                    date DATE NOT NULL,
+                    id_paiement INTEGER NOT NULL,
+                    FOREIGN KEY(employe_id) REFERENCES employes(id),
+                    FOREIGN KEY(id_paiement) REFERENCES paiement(id_paiement));
+            `);
+            console.log("Base de données initialisée !");
+            console.log("Caca boudin")
+        }
 
-            await fetch("http://127.0.0.1:5000/employes", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ nom: name, prenom: firstName })
-            });
+        initDB();
 
+        async function saveDB() {
+            localStorage.setItem("database", db.export().buffer);
+            console.log("Base de données sauvegardée !");
+        }
+
+        async function loadDB() {
+            let savedDB = localStorage.getItem("database");
+            if (savedDB) {
+                const SQL = await initSqlJs({ locateFile: cantineo => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${cantineo}` });
+                db = new SQL.Database(new Uint8Array(savedDB));
+                console.log("Base de données récupérée !")
+            }
+        }
+
+        loadDB();
+
+        function handleAddEmployee(){
+            let nom = document.getElementById("employeeName").value.trim();
+            let prenom = document.getElementById("employeeFirstName").value.trim();
+
+            if (!nom || !prenom){
+                alert("Le nom et le prenom sont requis !")
+                return;
+            }
+            
+            addEmployee(nom, prenom);
+        }
+
+        function addEmployee(nom, prenom) {
+            const stmt = db.prepare("INSERT INTO employes(nom, prenom) VALUES (?, ?)");
+            stmt.run([nom, prenom]);
+            stmt.free();
+            console.log(`Employé ${nom} ${prenom} ajouté`);
+            saveDB(); // TODO retirer le comm pour la version prod
             showMainPage();
         }
 
+        function getEmployees() {
+            let result = db.exec("SELECT * FROM employes");
+            console.log(result);
+            return result.length ? result[0].values : [];
+        }
 
-        async function displayEmployees() {
-            let response = await fetch("http://127.0.0.1:5000/employes");
-            let employees = await response.json();
-            
-            let list = document.getElementById('employeeList');
-            list.innerHTML = '';
+        function displayEmployees() {
+            let employeeList = document.getElementById("employeeList");
+            employeeList.innterHTML = "";
 
-            let date = document.getElementById('mealDate').value;
-            
+            let employees = getEmployees();
+
             employees.forEach(emp => {
-                let checked = mealRecords[date]?.includes(emp.id) ? 'checked' : '';
-                list.innerHTML += `<li>
-                    <input type='checkbox' id='emp${emp.id}' ${checked}> 
-                    ${emp.prenom} ${emp.nom}
-                </li>`;
+                let li = document.createElement("li");
+                li.textContent = `${emp[2]} ${emp[1]}`;
+                employeeList.appendChild(li);
             });
         }
-
-
-        async function saveMeals() {
-            let date = document.getElementById('mealDate').value;
-            if (!date) {
-                alert('Veuillez sélectionner une date.');
-                return;
-            }
-
-            let response = await fetch("http://127.0.0.1:5000/employes");
-            let employees = await response.json();
-
-            let repas = [];
-            employees.forEach(emp => {
-                let checkbox = document.getElementById(`emp${emp.id}`);
-                if (checkbox.checked) {
-                    repas.push({ employe_id: emp.id, montant: 0 });
-                }
-            });
-
-            await fetch("http://127.0.0.1:5000/repas", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ date, repas })
-            });
-
-            alert("Repas enregistrés !");
-        }
-
-        async function displayDebts() {
-            let response = await fetch("http://127.0.0.1:5000/dettes");
-            let dettes = await response.json();
-            
-            let list = document.getElementById('debtList');
-            list.innerHTML = '';
-            
-            dettes.forEach(emp => {
-                list.innerHTML += `<li>${emp.prenom} ${emp.nom} - Dette: ${emp.dette}€</li>`;
-            });
-        }
+        
 
     </script>
 </body>
