@@ -7,38 +7,104 @@
     <title>Gestion Cantine</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
+            font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            background-color: #f8f8f8;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: #fff;
+            min-height: 100vh;
+            text-align: center;
         }
+
         .container {
             width: 90%;
             max-width: 400px;
-            background: white;
+            background: #ffffff;
             padding: 20px;
             margin-top: 20px;
-            border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+            text-align: center;
+            color: #333;
+            transition: all 0.3s ease-in-out;
         }
+
+        h2 {
+            margin-bottom: 15px;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
         .btn {
             width: 100%;
-            padding: 10px;
+            padding: 12px;
             margin-top: 10px;
             border: none;
             background: #007BFF;
             color: white;
             font-size: 16px;
-            border-radius: 5px;
+            font-weight: bold;
+            border-radius: 25px;
             cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
         }
+
         .btn:hover {
             background: #0056b3;
+            transform: scale(1.05);
         }
-        .hidden { display: none; }
+
+        .btn-danger {
+            background: #ff4d4d;
+        }
+
+        .btn-danger:hover {
+            background: #cc0000;
+        }
+
+        input[type="text"], input[type="date"] {
+            width: 90%;
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            border-color: #007BFF;
+            outline: none;
+            box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
+        }
+
+        ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        ul li {
+            background: #f8f8f8;
+            padding: 12px;
+            margin: 6px 0;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .hidden {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -50,6 +116,7 @@
         <button class="btn" onclick="saveMeals()">Enregistrer repas</button>
         <button class="btn" onclick="showDebts()">Voir les dettes</button>
         <button class="btn" onclick="showAddEmployee()">Ajouter un employé</button>
+        <button class="btn" onclick="showDelEmployee()">Supprimer un employé</button>
     </div>
     
     <div class="container hidden" id="debtsPage">
@@ -66,15 +133,23 @@
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
     
+    <div class="container hidden" id="delEmployeePage">
+        <h2>Supprimer un employé</h2>
+        <ul id="delEmployeeList"></ul>
+        <button class="btn" onclick="showMainPage()">Retour</button>
+    </div>
+    
+
     <script>
         let employees = [];
         let mealRecords = {};
 
         function showMainPage() {
+            displayEmployees();
             document.getElementById('mainPage').classList.remove('hidden');
             document.getElementById('debtsPage').classList.add('hidden');
+            document.getElementById('delEmployeePage').classList.add('hidden');
             document.getElementById('addEmployeePage').classList.add('hidden');
-            displayEmployees();
         }
 
         function showDebts() {
@@ -87,45 +162,115 @@
             document.getElementById('addEmployeePage').classList.remove('hidden');
         }
 
+        function showDelEmployee() {
+            updateDeleteList();
+            document.getElementById('mainPage').classList.add('hidden');
+            document.getElementById('delEmployeePage').classList.remove('hidden');
+        }
+
         let db;
         async function initDB() {
-            const SQL = await initSqlJs({ locateFile: cantineo => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${cantineo}` })
+            const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` });
+
             db = new SQL.Database();
 
+            db.run(`
+                CREATE TABLE IF NOT EXISTS employes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                nom TEXT NOT NULL,
+                prenom TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS paiements (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                employe_id INTEGER NOT NULL,
+                date_paiement DATE NOT NULL,
+                montant_paiement FLOAT NOT NULL,
+                FOREIGN KEY(employe_id) REFERENCES employes(id) ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS repas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date DATE NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS passer_repas (
+                id_repas INTEGER NOT NULL,
+                id_employe INTEGER NOT NULL,
+                FOREIGN KEY(id_repas) REFERENCES repas(id) ON DELETE CASCADE,
+                FOREIGN KEY(id_employe) REFERENCES employes(id) ON DELETE CASCADE,
+                PRIMARY KEY(id_repas, id_employe)
+            );
+
+            `);
+
+            console.log("Base de données initialisée !");
+            saveDB();
+        }
+
+        function resetDatabase() {
+            // 🟢 Supprimer toutes les données et tables existantes
+            db.run("DROP TABLE IF EXISTS repas");
+            db.run("DROP TABLE IF EXISTS repas_employes");
+            db.run("DROP TABLE IF EXISTS paiement");
+            db.run("DROP TABLE IF EXISTS employes");
+
+            // 🟢 Recréer les tables avec la structure initiale
             db.run(`
                 CREATE TABLE IF NOT EXISTS employes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     nom TEXT NOT NULL,
                     prenom TEXT NOT NULL);
-                CREATE TABLE IF NOT EXISTS paiement  (
+                CREATE TABLE IF NOT EXISTS paiement (
                     id_paiement INTEGER PRIMARY KEY AUTOINCREMENT,
                     date_paiement DATE NOT NULL,
                     montant_paiement FLOAT);
                 CREATE TABLE IF NOT EXISTS repas (
                     id_repas INTEGER PRIMARY KEY AUTOINCREMENT,
-                    employe_id INTEGER NOT NULL,
-                    date DATE NOT NULL,
-                    id_paiement INTEGER NOT NULL,
-                    FOREIGN KEY(employe_id) REFERENCES employes(id),
-                    FOREIGN KEY(id_paiement) REFERENCES paiement(id_paiement));
+                    date DATE NOT NULL);
+                CREATE TABLE IF NOT EXISTS passer_repas (
+                    id_repas INTEGER NOT NULL,
+                    id_employe INTEGER NOT NULL,
+                    FOREIGN KEY(id_repas) REFERENCES repas(id_repas),
+                    FOREIGN KEY(id_employe) REFERENCES employes(id)
+                );
             `);
-            console.log("Base de données initialisée !");
-            console.log("Caca boudin")
+
+            console.log("Base de données réinitialisée !");
+            saveDB(); // Sauvegarder la base réinitialisée
         }
 
-        initDB();
-
         async function saveDB() {
-            localStorage.setItem("database", db.export().buffer);
+            if (!db) {
+                console.error("La base de données n'est pas initialisée !");
+                return;
+            }
+
+            const binaryArray = db.export();
+            const base64String = btoa(String.fromCharCode(...binaryArray));
+
+            localStorage.setItem("database", base64String);
             console.log("Base de données sauvegardée !");
         }
 
         async function loadDB() {
             let savedDB = localStorage.getItem("database");
             if (savedDB) {
-                const SQL = await initSqlJs({ locateFile: cantineo => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${cantineo}` });
-                db = new SQL.Database(new Uint8Array(savedDB));
-                console.log("Base de données récupérée !")
+                const SQL = await initSqlJs({ locateFile: file => `https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/${file}` });
+
+                // Convertit le Base64 en Uint8Array
+                const binaryString = atob(savedDB);
+                const binaryArray = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    binaryArray[i] = binaryString.charCodeAt(i);
+                }
+
+                db = new SQL.Database(binaryArray);
+                console.log("Base de données restaurée !");
+                showMainPage();
+            } else {
+                console.log("Aucune base trouvée, initialisation d'une nouvelle !");
+                await initDB();
             }
         }
 
@@ -148,9 +293,61 @@
             stmt.run([nom, prenom]);
             stmt.free();
             console.log(`Employé ${nom} ${prenom} ajouté`);
-            saveDB(); // TODO retirer le comm pour la version prod
             showMainPage();
+            saveDB();
         }
+
+        function getEmployeById(idEmploye) {
+            const stmt = db.prepare("SELECT * FROM employes WHERE id = ?");
+            const result = stmt.get([idEmploye]);
+            stmt.free();
+            console.log(`Employé récupéré : ${result}`);
+            return result || null ;
+        }
+
+        function deleteEmployee(idEmploye) {
+            let employe = getEmployeById(idEmploye);
+            if(!employe){
+                console.log("Employé non trouvé !");
+                return;
+            }
+
+            const stmt = db.prepare("DELETE FROM employes WHERE id = ?");
+            stmt.run([idEmploye]);
+            stmt.free();
+            console.log(`Employé ${employe[1]} ${employe[2]} supprimé`);
+            saveDB();
+        }
+
+        function updateDeleteList() {
+            let delEmployeeList = document.getElementById("delEmployeeList");
+            delEmployeeList.innerHTML = "";
+
+            let employees = getEmployees();
+
+            if (employees.length === 0) {
+                delEmployeeList.innerHTML = "<p>Aucun employé enregistré.</p>";
+                return;
+            }
+
+            employees.forEach(emp => {
+                let li = document.createElement("li");
+                li.textContent = `${emp[1]} ${emp[2]}`;
+
+                let deleteBtn = document.createElement("button");
+                deleteBtn.textContent = "X";
+                deleteBtn.classList.add("btn", "btn-danger");
+                deleteBtn.onclick = () => {
+                    deleteEmployee(emp[0]);
+                    updateDeleteList();
+                    displayEmployees();
+                };
+
+                li.appendChild(deleteBtn);
+                delEmployeeList.appendChild(li);
+            });
+        }
+
 
         function getEmployees() {
             let result = db.exec("SELECT * FROM employes");
@@ -160,18 +357,66 @@
 
         function displayEmployees() {
             let employeeList = document.getElementById("employeeList");
-            employeeList.innterHTML = "";
+            employeeList.innerHTML = "";
 
             let employees = getEmployees();
+            console.log("Employés récupérés :", employees);
 
             employees.forEach(emp => {
                 let li = document.createElement("li");
-                li.textContent = `${emp[2]} ${emp[1]}`;
+
+                let checkbox = document.createElement("input");
+                checkbox.type = "checkbox";
+                checkbox.value = emp[0]; // ID de l'employé
+                checkbox.classList.add("employee-checkbox");
+
+                let label = document.createElement("label");
+                label.textContent = `${emp[2]} ${emp[1]}`; // Prénom + Nom
+
+                li.appendChild(checkbox);
+                li.appendChild(label);
                 employeeList.appendChild(li);
             });
         }
-        
 
+        // 🟢 Fonction pour enregistrer un repas
+        function saveMeals() {
+            let selectedEmployees = Array.from(document.querySelectorAll(".employee-checkbox:checked"))
+                .map(cb => parseInt(cb.value));
+
+            let mealDate = document.getElementById("mealDate").value;
+
+            if (!mealDate) {
+                alert("Veuillez sélectionner une date !");
+                return;
+            }
+
+            if (selectedEmployees.length === 0) {
+                alert("Veuillez sélectionner au moins un employé !");
+                return;
+            }
+
+            // 🟢 Insérer le repas
+            const stmt = db.prepare("INSERT INTO repas (date) VALUES (?)");
+            stmt.run([mealDate]);
+            stmt.free();
+
+            // 🔄 Récupérer l'ID du dernier repas ajouté
+            let mealId = db.exec("SELECT last_insert_rowid() AS id")[0].values[0][0];
+
+            // 🟢 Associer chaque employé sélectionné au repas
+            selectedEmployees.forEach(empId => {
+                const stmt = db.prepare("INSERT INTO repas_employes (id_repas, id_employe) VALUES (?, ?)");
+                stmt.run([mealId, empId]);
+                stmt.free();
+            });
+
+            console.log(`Repas ajouté pour les employés ${selectedEmployees} à la date ${mealDate}`);
+            saveDB(); // Sauvegarde la base mise à jour
+            alert("Repas enregistré avec succès !");
+        }
+
+        
     </script>
 </body>
 </html>
