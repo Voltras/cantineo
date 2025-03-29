@@ -6,78 +6,132 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.js"></script>
     <title>Gestion Cantine</title>
     <style>
-        /* Styles similaires à ceux déjà fournis */
+        /* Styles généraux */
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             font-family: 'Poppins', sans-serif;
             margin: 0;
             padding: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
             background: linear-gradient(135deg, #007bff, #0056b3);
             color: #fff;
             min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
         }
+
+        .meal-history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin: 6px 0;
+            background: #f0f8ff;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .meal-date {
+            flex-grow: 1;
+            text-align: left;
+        }
+
+        .no-meal {
+            text-align: center;
+            font-style: italic;
+            color: #666;
+            padding: 10px;
+        }
+
+        /* Conteneur principal */
         .container {
             width: 90%;
             max-width: 400px;
-            background: #ffffff;
             padding: 20px;
             margin-top: 20px;
+            background: #ffffff;
+            color: #333;
             border-radius: 15px;
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-            text-align: center;
-            color: #333;
         }
-        .btn {
+
+        /* Boutons généraux */
+        .btn,
+        .employee-button {
             width: 100%;
             padding: 12px;
             margin-top: 10px;
             border: none;
+            border-radius: 12px;
             background: #007BFF;
             color: white;
             font-size: 16px;
             font-weight: bold;
-            border-radius: 25px;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: background 0.3s, transform 0.2s;
             box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
         }
-        .btn:hover {
+
+        .btn:hover,
+        .employee-button:hover {
             background: #0056b3;
             transform: scale(1.05);
         }
-        input[type="text"], input[type="date"], input[type="number"] {
+
+        /* Input et Checkbox */
+        input[type="text"],
+        input[type="date"],
+        input[type="number"],
+        .employee-checkbox {
             width: 90%;
             padding: 12px;
             margin: 8px 0;
-            border: 1px solid #ccc;
             border-radius: 10px;
             font-size: 16px;
             text-align: center;
+            border: 1px solid #ccc;
+            outline: none;
+            transition: box-shadow 0.3s;
         }
+
         input:focus {
             border-color: #007BFF;
-            outline: none;
             box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
         }
+
+        .employee-checkbox {
+            width: 24px;
+            height: 24px;
+            accent-color: #007BFF;
+            cursor: pointer;
+        }
+
+        /* Liste des employés */
         ul {
             list-style: none;
             padding: 0;
         }
-        ul li {
-            background: #f8f8f8;
+
+        .employee-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             padding: 12px;
             margin: 6px 0;
-            border-radius: 10px;
+            background: #f8f8f8;
+            border-radius: 12px;
             font-size: 16px;
             font-weight: bold;
             color: #333;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
+
+        /* Utilitaire */
         .hidden {
             display: none;
         }
@@ -99,14 +153,18 @@
         <button class="btn" onclick="showSettings()">Paramètres</button>
     </div>
 
-    <!-- Page pour les dettes des employés -->
+    <div class="container hidden" id="mealHistoryByEmployeePage">
+        <h2>Historique des repas par employé</h2>
+        <ul id="mealHistoryList"></ul>
+        <button class="btn" onclick="showMainPage()">Retour</button>
+    </div>
+
     <div class="container hidden" id="debtsPage">
         <h2>Dettes des employés</h2>
         <ul id="debtList"></ul>
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
 
-    <!-- Page pour ajouter un employé -->
     <div class="container hidden" id="addEmployeePage">
         <h2>Ajouter un employé</h2>
         <input type="text" id="employeeName" placeholder="Nom" required>
@@ -115,7 +173,6 @@
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
 
-    <!-- Page pour supprimer un employé -->
     <div class="container hidden" id="delEmployeePage">
         <h2>Supprimer un employé</h2>
         <ul id="delEmployeeList"></ul>
@@ -128,7 +185,6 @@
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
 
-    <!-- Page pour enregistrer un paiement -->
     <div class="container hidden" id="savePaymentPage">
         <h2>Enregistrer un paiement</h2>
         <label for="paymentEmployee">Employé :</label>
@@ -141,7 +197,6 @@
         <button class="btn" onclick="showMainPage()">Retour</button>
     </div>
 
-    <!-- Page pour les paramètres (prix du repas) -->
     <div class="container hidden" id="parametresPage">
         <h2>Paramètres</h2>
         <label for="mealPrice">Prix d'un repas :</label>
@@ -226,7 +281,6 @@
         loadDB();
 
         function resetDatabase() {
-            // 🟢 Supprimer toutes les données et tables existantes
             db.run("DROP TABLE IF EXISTS repas");
             db.run("DROP TABLE IF EXISTS passer_repas");
             db.run("DROP TABLE IF EXISTS paiements");
@@ -234,7 +288,6 @@
             db.run("DROP TABLE IF EXISTS parametres");
             db.run("DROP TABLE IF EXISTS dettes");
 
-            // 🟢 Recréer les tables avec la structure initiale
             db.run(`
                 CREATE TABLE IF NOT EXISTS employes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -288,6 +341,7 @@
             document.getElementById('savePaymentPage').classList.add('hidden');
             document.getElementById('parametresPage').classList.add('hidden');
             document.getElementById('historyPage').classList.add('hidden');
+            document.getElementById('mealHistoryByEmployeePage').classList.add('hidden');
         }
 
         function displayEmployees() {
@@ -299,19 +353,59 @@
 
             employees.forEach(emp => {
                 let li = document.createElement("li");
+                li.classList.add("employee-item");
 
                 let checkbox = document.createElement("input");
                 checkbox.type = "checkbox";
                 checkbox.value = emp[0]; // ID de l'employé
                 checkbox.classList.add("employee-checkbox");
 
-                let label = document.createElement("label");
-                label.textContent = `${emp[2]} ${emp[1]}`; // Prénom + Nom
+                let employeeButton = document.createElement("button");
+                employeeButton.textContent = `${emp[2]} ${emp[1]}`; // Prenom avant le nom
+                employeeButton.classList.add("employee-button");
+                employeeButton.onclick = () => {
+                    document.getElementById('mealHistoryByEmployeePage').classList.remove('hidden');
+                    document.getElementById('mainPage').classList.add('hidden');
+                    displayEmployeeHistory(emp[0]); // Passer l'ID de l'employé à la fonction
+                };
 
                 li.appendChild(checkbox);
-                li.appendChild(label);
+                li.appendChild(employeeButton);
                 employeeList.appendChild(li);
             });
+        }
+
+        function displayEmployeeHistory(employe_id) {
+            let mealHistoryList = document.getElementById("mealHistoryList");
+            mealHistoryList.innerHTML = ""; // Vider la liste avant de la remplir
+
+            let res = db.exec(`
+                SELECT r.date
+                FROM repas r
+                INNER JOIN passer_repas pr ON r.id = pr.id_repas
+                WHERE pr.id_employe = ?
+                ORDER BY r.date DESC
+            `, [employe_id]);
+
+            if (res[0] && res[0].values.length > 0) {
+                res[0].values.forEach(row => {
+                    let date = new Date(row[0]);
+                    let options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                    let formattedDate = date.toLocaleDateString('fr-FR', options); // Ex: "Lundi 25 mars 2024"
+
+                    let li = document.createElement('li');
+                    li.classList.add("meal-history-item");
+                    li.innerHTML = `
+                        <span class="meal-date">Repas le ${formattedDate}</span>
+                    `;
+                    mealHistoryList.appendChild(li);
+                });
+            } else {
+                let li = document.createElement('li');
+                li.classList.add("no-meal");
+                li.innerHTML = "<i>Aucun repas enregistré pour cet employé.</i>";
+                mealHistoryList.appendChild(li);
+            }
         }
 
         function getEmployees() {
