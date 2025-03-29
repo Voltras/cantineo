@@ -61,9 +61,50 @@
             box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
         }
 
-        /* Boutons généraux */
-        .btn,
+        #searchEmployee {
+            width: 90%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 10px;
+            font-size: 16px;
+            border: 1px solid #ccc;
+            text-align: center;
+        }
+
+        .employee-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px;
+            background: #f0f8ff;
+            border-radius: 12px;
+            margin-bottom: 6px;
+        }
+
+        .employee-checkbox {
+            width: 20px;
+            height: 20px;
+            accent-color: #007BFF;
+        }
+
         .employee-button {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border-radius: 10px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .employee-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Boutons généraux */
+        .btn{
             width: 100%;
             padding: 12px;
             margin-top: 10px;
@@ -78,8 +119,7 @@
             box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
         }
 
-        .btn:hover,
-        .employee-button:hover {
+        .btn:hover{
             background: #0056b3;
             transform: scale(1.05);
         }
@@ -87,8 +127,7 @@
         /* Input et Checkbox */
         input[type="text"],
         input[type="date"],
-        input[type="number"],
-        .employee-checkbox {
+        input[type="number"] {
             width: 90%;
             padding: 12px;
             margin: 8px 0;
@@ -105,30 +144,56 @@
             box-shadow: 0 0 8px rgba(0, 123, 255, 0.4);
         }
 
-        .employee-checkbox {
-            width: 24px;
-            height: 24px;
-            accent-color: #007BFF;
-            cursor: pointer;
-        }
-
         /* Liste des employés */
         ul {
             list-style: none;
             padding: 0;
         }
 
-        .employee-item {
+        #delEmployeeList {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .del-employee-item {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
             padding: 12px;
-            margin: 6px 0;
-            background: #f8f8f8;
+            margin-bottom: 10px;
+            background-color: #f0f8ff;
             border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: background-color 0.3s;
+        }
+
+        .del-employee-item:hover {
+            background-color: #e6f7ff;
+        }
+
+        .del-employee-name {
             font-size: 16px;
-            font-weight: bold;
+            font-weight: 600;
             color: #333;
+            flex-grow: 1;
+        }
+
+        .del-employee-button {
+            padding: 10px 15px;
+            background-color: #ff4d4f;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+
+        .del-employee-button:hover {
+            background-color: #d9363e;
+            transform: scale(1.05);
         }
 
         /* Utilitaire */
@@ -138,11 +203,14 @@
     </style>
 </head>
 <body>
-    <!-- Page principale -->
     <div class="container" id="mainPage">
         <h2>Liste des employés</h2>
         <label for="mealDate">Sélectionner une date :</label>
         <input type="date" id="mealDate">
+
+        <label for ="searchEmployee">Rechercher un employé :</label>
+        <input type="text" id="searchEmployee" placeholder="Nom ou Prénom...">
+
         <ul id="employeeList"></ul>
         <button class="btn" onclick="saveMeals()">Enregistrer repas</button>
         <button class="btn" onclick="showDebts()">Voir les dettes</button>
@@ -349,9 +417,15 @@
             employeeList.innerHTML = "";
 
             let employees = getEmployees();
-            console.log("Employés récupérés :", employees);
+            updateEmployeeList(employees); // Affichage de tous les employés par défaut
+        }
 
-            employees.forEach(emp => {
+        function updateEmployeeList(filteredEmployees) {
+
+            let employeeList = document.getElementById("employeeList");
+            employeeList.innerHTML = "";
+
+            filteredEmployees.forEach(emp => {
                 let li = document.createElement("li");
                 li.classList.add("employee-item");
 
@@ -374,6 +448,17 @@
                 employeeList.appendChild(li);
             });
         }
+
+        // Fonction active en permanence qui permet de filtrer sur soit le nom soit le prénom des employés.
+        document.getElementById("searchEmployee").addEventListener("input", (e) => {
+            let searchTerm = e.target.value.toLowerCase();
+            let employees = getEmployees();
+            let filteredEmployees = employees.filter(emp =>
+                emp[1].toLowerCase().includes(searchTerm) || emp[2].toLowerCase().includes(searchTerm)
+            );
+
+            updateEmployeeList(filteredEmployees);
+        });
 
         function displayEmployeeHistory(employe_id) {
             let mealHistoryList = document.getElementById("mealHistoryList");
@@ -420,70 +505,50 @@
 
         function showDebts() {
             let debtList = document.getElementById('debtList');
-            debtList.innerHTML = ""; // Vider la liste avant de la remplir
+            debtList.innerHTML = "";
 
-            let debts = getDebts(); // Récupérer les dettes
+            let debts = getDebts();
 
             debts.forEach(debt => {
                 let li = document.createElement('li');
-
-                // Vérification que debtAmount est un nombre valide
                 let validDebtAmount = isNaN(debt.debtAmount) ? 0 : debt.debtAmount;
-
-                // Affichage avec un format de 2 décimales
                 li.textContent = `${debt.name}: ${validDebtAmount.toFixed(2)}€`;
 
-                // Ajouter l'élément à la liste
                 debtList.appendChild(li);
             });
-
-            // Afficher la page des dettes et masquer la page principale
             document.getElementById('debtsPage').classList.remove('hidden');
             document.getElementById('mainPage').classList.add('hidden');
         }
 
-
         function getDebts() {
-            let debts = []; // Utilisation d'un tableau pour stocker les dettes des employés
-            let employees = getEmployees(); // On récupère la liste des employés
-
-            // Pour chaque employé, on va chercher sa dette dans la base de données
+            let debts = [];
+            let employees = getEmployees();
             employees.forEach(employee => {
-                const employeeId = employee[0]; // L'ID de l'employé se trouve dans le premier champ (index 0)
-                
-                // Récupérer la dette actuelle de l'employé dans la table 'dettes'
+                const employeeId = employee[0];
                 const stmt = db.prepare("SELECT montant_dette FROM dettes WHERE id_employe = ?");
                 const result = stmt.get([employeeId]);
                 stmt.free();
-
-                // Si l'employé a une dette enregistrée, on la récupère, sinon on la considère comme 0
                 const debtAmount = result ? result[0] : 0;
-
-                // Ajouter un objet au tableau 'debts' contenant le nom de l'employé et sa dette
                 debts.push({
-                    name: `${employee[1]} ${employee[2]}`, // Concatenation du prénom et du nom pour l'affichage
-                    debtAmount: debtAmount // Ajout de la dette de l'employé
+                    name: `${employee[1]} ${employee[2]}`,
+                    debtAmount: debtAmount
                 });
             });
 
-            return debts; // Retourner le tableau des dettes
+            return debts;
         }
-
 
         function addMealToDebt(employeeId) {
             const price = getMealPrice();
 
-            // Vérifie si l'employé a déjà une dette dans la table 'dettes'
             const stmtCheckDebt = db.prepare("SELECT montant_dette FROM dettes WHERE id_employe = ?");
             const result = stmtCheckDebt.get([employeeId]);
             console.log(result);
             console.log(result[0]);
             stmtCheckDebt.free();
 
-            // Si l'employé a déjà une dette (montant_dette n'est pas null), on l'incrémente
             if (result && result.length > 0) {
-                // Si la dette existe, on l'incrémente, sinon on considère la dette comme 0
-                const newDebt = (result[0] || 0) + price;  // Remplace null par 0
+                const newDebt = (result[0] || 0) + price;
 
                 const stmtUpdateDebt = db.prepare("UPDATE dettes SET montant_dette = ? WHERE id_employe = ?");
                 stmtUpdateDebt.run([newDebt, employeeId]);
@@ -491,7 +556,6 @@
 
                 console.log(`Test3: Updated debt for employee ${employeeId}. New debt: ${newDebt}`);
             } else {
-                // Si l'employé n'a pas de dette, on l'ajoute avec le montant du repas
                 const stmtInsertDebt = db.prepare("INSERT INTO dettes (id_employe, montant_dette) VALUES (?, ?)");
                 stmtInsertDebt.run([employeeId, price]);
                 stmtInsertDebt.free();
@@ -530,14 +594,13 @@
             });
 
             console.log(`Repas ajouté pour les employés ${selectedEmployees} à la date ${mealDate}`);
-            saveDB(); // Sauvegarde la base mise à jour
+            saveDB();
             alert("Repas enregistré avec succès !");
         }
 
         function getMealPrice() {
             let res = db.exec("SELECT prix_repas FROM parametres LIMIT 1");
-            console.log(res);
-            return res[0] ? res[0].values[0][0] : 5.00; // Valeur par défaut
+            return res[0] ? res[0].values[0][0] : 5.00; // Valeur par défaut si pas trouvé
         }
 
         function showAddEmployee() {
@@ -547,14 +610,24 @@
 
         function showDelEmployee() {
             let delEmployeeList = document.getElementById('delEmployeeList');
-            delEmployeeList.innerHTML = "";
+            delEmployeeList.innerHTML = ""; // Vider la liste
+
             let employees = getEmployees();
+
             employees.forEach(emp => {
                 let li = document.createElement("li");
-                li.textContent = `${emp[1]} ${emp[2]}`;
+                li.classList.add("del-employee-item");
+
+                let nameSpan = document.createElement("span");
+                nameSpan.classList.add("del-employee-name");
+                nameSpan.textContent = `${emp[1]} ${emp[2]}`;
+
                 let delButton = document.createElement("button");
+                delButton.classList.add("del-employee-button");
                 delButton.textContent = "Supprimer";
                 delButton.onclick = () => deleteEmployee(emp[0]);
+
+                li.appendChild(nameSpan);
                 li.appendChild(delButton);
                 delEmployeeList.appendChild(li);
             });
@@ -562,6 +635,7 @@
             document.getElementById('delEmployeePage').classList.remove('hidden');
             document.getElementById('mainPage').classList.add('hidden');
         }
+
 
         function deleteEmployee(id) {
             db.run(`DELETE FROM employes WHERE id = ?`, [id]);
@@ -593,12 +667,10 @@
         }
 
         function savePayment() {
-            // Récupérer les éléments du DOM
             let empIdElement = document.getElementById('paymentEmployee');
             let paymentDateElement = document.getElementById('paymentDate');
             let amountElement = document.getElementById('paymentAmount');
 
-            // Vérifiez si les éléments existent avant d'en extraire la valeur
             if (!empIdElement || !paymentDateElement || !amountElement) {
                 console.error("One or more input elements are missing in the DOM.");
                 return;
@@ -613,17 +685,14 @@
                 return;
             }
 
-            // Effectuer l'insertion du paiement
             db.run(`INSERT INTO paiements (employe_id, date_paiement, montant_paiement) VALUES (?, ?, ?)`,
                 [empId, paymentDate, amount]);
 
-            // Vérifiez la dette de l'employé
             const stmtCheckDebt = db.prepare("SELECT montant_dette FROM dettes WHERE id_employe = ?");
             const result = stmtCheckDebt.get([empId]);
             stmtCheckDebt.free();
 
             if (result && result.length > 0 && result[0] !== null) {
-                // Si l'employé a déjà une dette, on la décrémente
                 const newDebt = result[0] - amount;
 
                 const stmtUpdateDebt = db.prepare("UPDATE dettes SET montant_dette = ? WHERE id_employe = ?");
@@ -632,30 +701,25 @@
 
                 console.log(`Test3: Updated debt for employee ${empId}. New debt: ${newDebt}`);
             } else {
-                // Si l'employé n'a pas de dette, on insère la nouvelle dette (ce cas est moins courant)
                 const stmtInsertDebt = db.prepare("INSERT INTO dettes (id_employe, montant_dette) VALUES (?, ?)");
-                stmtInsertDebt.run([empId, -amount]); // La dette initiale devient négative du montant payé
+                stmtInsertDebt.run([empId, -amount]);
                 stmtInsertDebt.free();
 
                 console.log(`Test4: Debt inserted for employee ${empId}. Amount: ${-amount}`);
             }
-
-            // Sauvegarder la base de données et afficher la page principale
             saveDB();
             showMainPage();
         }
 
         function showHistory() {
-            // Assurez-vous que l'élément 'historyList' est trouvé
             let historyList = document.getElementById('historyList');
             
-            // Vérifie si l'élément est null avant de procéder
             if (!historyList) {
                 console.error('L\'élément historyList est introuvable.');
-                return; // Arrêter la fonction si l'élément est introuvable
+                return;
             }
 
-            historyList.innerHTML = ""; // Réinitialiser la liste des historiques
+            historyList.innerHTML = "";
 
             let history = getHistory();
             if (history.length > 0) {
@@ -670,7 +734,6 @@
                 historyList.appendChild(li);
             }
 
-            // Afficher la page d'historique
             document.getElementById('historyPage').classList.remove('hidden');
             document.getElementById('mainPage').classList.add('hidden');
         }
@@ -684,10 +747,9 @@
                 ORDER BY r.date DESC
             `);
             
-            // Vérification si la réponse de la requête est valide
             if (!res || !res[0] || !res[0].values) {
                 console.log("Aucun résultat trouvé pour l'historique.");
-                return [];  // Retourner un tableau vide si aucun résultat n'est trouvé
+                return [];
             }
 
             let history = [];
